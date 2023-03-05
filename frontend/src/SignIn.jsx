@@ -1,4 +1,18 @@
 import { Component } from "react";
+import './SignIn.css'
+import { redirect } from "react-router-dom";
+
+// const loader = async () => {
+//     const user = await getUser();
+//     if (!user) {
+//         return redirect("/login");
+//     }
+//     return null;
+// };
+//
+// async function getUser() {
+//
+// }
 
 export default class SignIn extends Component {
     constructor(props) {
@@ -9,6 +23,8 @@ export default class SignIn extends Component {
         };
 
         this.handleSubmit = this.handleSubmit.bind(this);
+        this.handleEmailChange = this.handleEmailChange.bind(this);
+        this.handlePasswordChange = this.handlePasswordChange.bind(this);
     }
 
     handleEmailChange(event) {
@@ -24,20 +40,20 @@ export default class SignIn extends Component {
     }
 
     handleSubmit(event) {
-        const url = "http://127.0.0.1:8000/sign-in"
+        const url = "http://127.0.0.1:8000/token"
+        const formData = new FormData();
+        formData.set("username", this.state.email)
+        formData.set("password", this.state.password)
         fetch(url, {
             method: "POST",
             mode: "cors",
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                email: this.state.prompt,
-                password: this.state.password
-            })
+            body: formData
         })
             .then((response) => response.json())
             .then(data => {
-                console.log(data)
-                // this.setState({ ...this.state, output: data['text'] })
+                this.setState({ ...this.state, bearer: data['access_token'] })
+                localStorage.setItem("ot_access_token", data['access_token']);
+                window.location.replace(`${window.location.origin}/`);
             })
 
         event.preventDefault();
@@ -45,10 +61,10 @@ export default class SignIn extends Component {
 
     render() {
         return(
-            <div>
+            <div className="sign-in-container">
                 <p>Sign in</p>
-                <input placeholder="Email" type="email" value={this.state.email} onChange={this.handleEmailChange}/>
-                <input placeholder="Password" type="password" value={this.state.password} onChange={this.handlePasswordChange}/>
+                <input className="email-input" placeholder="Email" type="email" value={this.state.email} onChange={this.handleEmailChange}/>
+                <input className="password-input" placeholder="Password" type="password" value={this.state.password} onChange={this.handlePasswordChange}/>
                 <button type="button" onClick={this.handleSubmit}>Submit</button>
             </div>
         )

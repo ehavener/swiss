@@ -1,14 +1,20 @@
-.container {
+.home-container {
     height: 100vh;
     width: 100vw;
     display: flex;
     flex-direction: row;
+    margin: 0 0 !important;
+}
+
+#root {
+    margin: 0 0 !important;
 }
 
 .sidebar {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    width: 16%;
 }
 
 .content {
@@ -16,4 +22,33 @@
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+}
+
+div:not(.home-container) {
+    margin: 8px;
+}
+
+.compose-message-container {
+    display: flex;
+}
+
+.message-text {
+    width: 100%;
+}
+
+.message-text textarea {
+    width: 100%;
+}
+
+.message-send button {
+    height: 100%;
+}
+
+.user-details .username {
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.message-list-item.response {
+    background: aliceblue;
 }

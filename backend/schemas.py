@@ -1,36 +1,44 @@
-from typing import List, Union
+from typing import Union
 
 from pydantic import BaseModel
 
-
-class PromptBase(BaseModel):
-    text: Union[str, None] = None
-
-
-class PromptCreate(PromptBase):
-    pass
-
-
-class Prompt(PromptBase):
+class User(BaseModel):
     id: int
-    owner_id: int
+    email: Union[str, None] = None
+    full_name: Union[str, None] = None
+    disabled: Union[bool, None] = None
 
     class Config:
         orm_mode = True
 
-
-class UserBase(BaseModel):
-    email: str
-
-
-class UserCreate(UserBase):
-    password: str
-
-
-class User(UserBase):
+class Thread(BaseModel):
     id: int
-    is_active: bool
-    prompts: List[Prompt] = []
+    title: str
+    last_message_at: Union[str, None]
+    user_id: int
+
+    class Config:
+        orm_mode = True
+
+class ThreadCreate(BaseModel):
+    title: str
+
+    class Config:
+        orm_mode = True
+
+class Message(BaseModel):
+    id: int
+    text: str
+    type: str  # prompt | response
+    timestamp: Union[str, None]
+    thread_id: int
+    user_id: int
+
+    class Config:
+        orm_mode = True
+
+class MessageCreate(BaseModel):
+    text: str
 
     class Config:
         orm_mode = True
