@@ -1,5 +1,7 @@
 import { Component } from "react";
 
+import './Home.css';
+
 export default class Home extends Component {
     constructor(props) {
         super(props);
@@ -34,13 +36,42 @@ export default class Home extends Component {
     }
 
     render() {
+        const old = (<div>
+            <h1>Toolformer</h1>
+            <input placeholder="Enter a prompt" type="text"
+                   value={this.state.prompt} onChange={this.handlePromptChange}/>
+            <button type="button" onClick={this.handleSubmit}>Submit</button>
+            <p>{this.state.output}</p>
+        </div>);
+
+
+
         return (
-            <div>
-                <h1>Toolformer</h1>
-                <input placeholder="Enter a prompt" type="text"
-                       value={this.state.prompt} onChange={this.handlePromptChange}/>
-                <button type="submit" onClick={this.handleSubmit}>Submit</button>
-                <p>{this.state.output}</p>
+            <div class="container">
+                <div class="sidebar">
+                    <div class="thread-list">
+                        <div class="thread-list-item">thread1</div>
+                        <div class="thread-list-item">thread2</div>
+                        <div class="thread-list-item">thread3</div>
+                    </div>
+                    <div class="user-details">
+                        <div class="username">username</div>
+                        <div class="sign-out">Sign out</div>
+                    </div>
+                </div>
+                <div class="content">
+                    <div class="message-log-container">
+                        <div class="message-log">
+                            <div class="message0">...</div>
+                            <div class="message1">...</div>
+                            <div class="message2">...</div>
+                        </div>
+                    </div>
+                    <div class="compose-message-container">
+                        <div class="message-text">New message text</div>
+                        <div class="message-send">Send</div>
+                    </div>
+                </div>
             </div>
         );
     }
