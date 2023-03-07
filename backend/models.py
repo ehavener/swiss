@@ -31,7 +31,7 @@ class Message(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     text = Column(String, index=True)
-    type = Column(String, index=True)  # prompt | response
+    type = Column(String, index=True)  # "prompt" | "response"
     timestamp = Column(DateTime)
     thread_id = Column(Integer, ForeignKey("threads.id"))
     user_id = Column(Integer, ForeignKey("users.id"))
