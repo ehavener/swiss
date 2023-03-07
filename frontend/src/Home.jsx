@@ -1,4 +1,4 @@
-import { Component } from "react";
+import { Component, createRef } from "react";
 
 import './Home.css';
 
@@ -6,6 +6,10 @@ export default class Home extends Component {
 
     constructor(props) {
         super(props);
+
+        this.messageList = createRef();
+        this.promptTextarea = createRef();
+
         this.state = {
             user: {},
             prompt: '',
@@ -97,6 +101,9 @@ export default class Home extends Component {
             .then(data => {
                 this.checkAuth(data);
                 this.setState({ ...this.state, messages: data })
+                setTimeout(() => {
+                    this.messageList.current.scrollTop = this.messageList.current.scrollHeight - this.messageList.current.offsetHeight;
+                })
             })
     }
 
@@ -107,7 +114,8 @@ export default class Home extends Component {
             selectedThreadId: threadId,
             creatingNewThread: false
         })
-        this.fetchMessages(threadId)
+        this.fetchMessages(threadId);
+        this.promptTextarea.current.focus();
     }
 
     handleNewThreadClick(event) {
@@ -117,6 +125,7 @@ export default class Home extends Component {
             creatingNewThread: true,
             selectedThreadId: null
         })
+        this.promptTextarea.current.focus();
     }
 
     handleSendClick(event) {
@@ -124,6 +133,7 @@ export default class Home extends Component {
 
         // Create a new thread if on the welcome/new thread page
         if (this.state.selectedThreadId == null) {
+            const newThreadTitle = this.state.prompt.slice(0, 50);
             const url = "http://127.0.0.1:8000/threads/"
             fetch(url, {
                 method: "POST",
@@ -132,7 +142,9 @@ export default class Home extends Component {
                     'Content-Type': 'application/json',
                     'Authorization' : `Bearer ${localStorage.getItem("ot_access_token")}`
                 },
-                body: JSON.stringify({ title: new Date().toLocaleString() })
+                body: JSON.stringify({
+                    title: newThreadTitle
+                })
             })
                 .then((response) => response.json())
                 .then(data => {
@@ -164,6 +176,9 @@ export default class Home extends Component {
                                 sendButtonEnabled: true,
                                 creatingNewThread: false
                             })
+                            setTimeout(() => {
+                                this.messageList.current.scrollTop = this.messageList.current.scrollHeight - this.messageList.current.offsetHeight;
+                            })
                         })
                 })
         } else {
@@ -187,6 +202,9 @@ export default class Home extends Component {
                         prompt: '',
                         sendButtonEnabled: true
                     })
+                    setTimeout(() => {
+                        this.messageList.current.scrollTop = this.messageList.current.scrollHeight - this.messageList.current.offsetHeight;
+                    })
                 })
         }
     }
@@ -199,11 +217,12 @@ export default class Home extends Component {
     }
 
     render() {
-        const threadListItems = this.state.threads.map(thread => {
+        const threadListItems = this.state.threads.reverse().map(thread => {
             return (
                 <div key={thread.id} className="thread-list-item">
                     <button type="button" title={thread.title} value={thread.id}
                             className={this.state.selectedThreadId == thread.id ? 'selected' : ''}
+                            disabled={!this.state.sendButtonEnabled}
                             onClick={this.handleThreadClick}>
                         {thread.title}
                     </button>
@@ -220,8 +239,9 @@ export default class Home extends Component {
             "What is the most popular imported car in North America?"
         ];
 
-        const examplePrompts = examplePromptStrings.map(examplePromptString => {
-            return <button type="button" value={examplePromptString} onClick={this.handleExampleClick}
+        const examplePrompts = examplePromptStrings.map((examplePromptString, i) => {
+            return <button key={i} type="button" value={examplePromptString}
+                           onClick={this.handleExampleClick}
                            className="example-prompt-button">{examplePromptString} →</button>
         })
 
@@ -237,7 +257,7 @@ export default class Home extends Component {
         </div>;
 
         const messageList = <div className="message-list-container">
-            <div className="message-list">
+            <div className="message-list" ref={this.messageList}>
                 {messageListItems}
             </div>
         </div>;
@@ -248,6 +268,7 @@ export default class Home extends Component {
                     <div className="thread-list">
                         <div>
                             <button style={{width: "100%", marginBottom: "8px"}}
+                                    disabled={!this.state.sendButtonEnabled}
                                     type="button" onClick={this.handleNewThreadClick}>
                                 New thread
                             </button>
@@ -265,7 +286,9 @@ export default class Home extends Component {
                     {this.state.creatingNewThread ? welcomeScreen : messageList}
                     <div className="compose-message-container">
                         <div className="message-text">
-                            <textarea value={this.state.prompt} disabled={!this.state.sendButtonEnabled} onChange={this.handlePromptChange} rows="6"/>
+                            <textarea value={this.state.prompt} disabled={!this.state.sendButtonEnabled}
+                                      ref={this.promptTextarea}
+                                      onChange={this.handlePromptChange} rows="6"/>
                         </div>
                         <div className="message-send">
                             {this.state.sendButtonEnabled ? sendButton : spinner}

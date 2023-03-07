@@ -98,6 +98,11 @@ div:not(.home-container) {
     background: aliceblue;
 }
 
+.thread-list {
+    overflow-y: auto;
+    max-height: calc(100vh - 134px);
+}
+
 .thread-list-item button {
     width: 100%;
     overflow: hidden;
