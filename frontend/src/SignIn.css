@@ -1,3 +1,7 @@
+.sign-in-nav {
+  justify-content: flex-end;
+  display: flex;
+}
 .sign-in-container {
   padding-top: 40px;
   display: flex;
@@ -15,5 +19,4 @@
 .password-input {
   width: 100%;
   max-width: 288px;
-  margin-bottom: 24px;
 }

@@ -1,18 +1,5 @@
 import { Component } from "react";
 import './SignIn.css'
-import { redirect } from "react-router-dom";
-
-// const loader = async () => {
-//     const user = await getUser();
-//     if (!user) {
-//         return redirect("/login");
-//     }
-//     return null;
-// };
-//
-// async function getUser() {
-//
-// }
 
 export default class SignIn extends Component {
     constructor(props) {
@@ -25,6 +12,7 @@ export default class SignIn extends Component {
         this.handleSubmit = this.handleSubmit.bind(this);
         this.handleEmailChange = this.handleEmailChange.bind(this);
         this.handlePasswordChange = this.handlePasswordChange.bind(this);
+        this.handleSignUpButtonClick = this.handleSignUpButtonClick.bind(this);
     }
 
     handleEmailChange(event) {
@@ -59,13 +47,22 @@ export default class SignIn extends Component {
         event.preventDefault();
     }
 
+    handleSignUpButtonClick() {
+        window.location.replace(`${window.location.origin}/sign-up`);
+    }
+
     render() {
         return(
-            <div className="sign-in-container">
-                <p>Sign in</p>
-                <input className="email-input" placeholder="Email" type="email" value={this.state.email} onChange={this.handleEmailChange}/>
-                <input className="password-input" placeholder="Password" type="password" value={this.state.password} onChange={this.handlePasswordChange}/>
-                <button type="button" onClick={this.handleSubmit}>Submit</button>
+            <div>
+                <nav className="sign-in-nav">
+                    <button type="button" onClick={this.handleSignUpButtonClick}>Sign Up</button>
+                </nav>
+                <div className="sign-in-container">
+                    <p>Sign in</p>
+                    <input className="email-input" placeholder="Email" type="email" value={this.state.email} onChange={this.handleEmailChange}/>
+                    <input className="password-input" placeholder="Password" type="password" value={this.state.password} onChange={this.handlePasswordChange}/>
+                    <button type="button" onClick={this.handleSubmit}>Submit</button>
+                </div>
             </div>
         )
     }
