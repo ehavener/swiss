@@ -33,6 +33,22 @@ div:not(.home-container) {
     display: flex;
     align-items: center;
     flex: 1;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.welcome-screen .example-prompts {
+    display: flex;
+    flex-direction: row;
+}
+
+.welcome-screen .example-prompts .example-prompt-button {
+    display: block;
+    white-space: normal;
+    height: auto;
+    margin: 8px;
+    max-width: 200px;
+    line-height: 1.35;
 }
 
 .message-list-container {

@@ -1,5 +1,4 @@
 import { Component } from "react";
-import { useNavigate } from "react-router-dom";
 
 import './Home.css';
 
@@ -25,6 +24,7 @@ export default class Home extends Component {
         this.handleThreadClick = this.handleThreadClick.bind(this);
         this.handleNewThreadClick = this.handleNewThreadClick.bind(this);
         this.handleLogoutClick = this.handleLogoutClick.bind(this);
+        this.handleExampleClick = this.handleExampleClick.bind(this);
     }
 
     componentDidMount() {
@@ -191,6 +191,13 @@ export default class Home extends Component {
         }
     }
 
+    handleExampleClick(event) {
+        this.setState({
+            ...this.state,
+            prompt: event.target.value,
+        })
+    }
+
     render() {
         const threadListItems = this.state.threads.map(thread => {
             return (
@@ -207,19 +214,33 @@ export default class Home extends Component {
             return (<div key={message.id} className={`${message.type} message-list-item`}>{message.text}</div>)
         })
 
-        const spinner = () =>  { return (<div className="spinner"></div>)}
+        const examplePromptStrings = [
+            "Are there any holidays next month?",
+            "How hot would Venus be if it had Earth's atmosphere?",
+            "What is the most popular imported car in North America?"
+        ];
 
-        const sendButton = () => { return (<button type="button" onClick={this.handleSendClick}>Send</button>) }
+        const examplePrompts = examplePromptStrings.map(examplePromptString => {
+            return <button type="button" value={examplePromptString} onClick={this.handleExampleClick}
+                           className="example-prompt-button">{examplePromptString} →</button>
+        })
 
-        const welcomeScreen = () => { return (<div className="welcome-screen">
+        const spinner = <div className="spinner"></div>;
+
+        const sendButton = <button type="button" onClick={this.handleSendClick}>Send</button>;
+
+        const welcomeScreen = <div className="welcome-screen">
             <h1>Open Toolformer</h1>
-        </div>)}
+            <div className="example-prompts">
+                {examplePrompts}
+            </div>
+        </div>;
 
-        const messageList = () => { return (<div className="message-list-container">
+        const messageList = <div className="message-list-container">
             <div className="message-list">
                 {messageListItems}
             </div>
-        </div>)}
+        </div>;
 
         return (
             <div className="home-container">
@@ -241,13 +262,13 @@ export default class Home extends Component {
                     </div>
                 </div>
                 <div className="content">
-                    {this.state.creatingNewThread ? welcomeScreen() : messageList()}
+                    {this.state.creatingNewThread ? welcomeScreen : messageList}
                     <div className="compose-message-container">
                         <div className="message-text">
                             <textarea value={this.state.prompt} disabled={!this.state.sendButtonEnabled} onChange={this.handlePromptChange} rows="6"/>
                         </div>
                         <div className="message-send">
-                            {this.state.sendButtonEnabled ? sendButton() : spinner()}
+                            {this.state.sendButtonEnabled ? sendButton : spinner}
                         </div>
                     </div>
                 </div>
