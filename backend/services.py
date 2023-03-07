@@ -7,11 +7,19 @@ from main import settings
 
 co = cohere.Client(settings.cohere_api_key)
 
-def get_user(db: Session, username: str):
-    return db.query(models.User).filter(models.User.username == username).first()
+def get_user(db: Session, email: str):
+    return db.query(models.User).filter(models.User.email == email).first()
 
-def get_threads(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Thread).offset(skip).limit(limit).all()
+def create_user(db: Session, user: User):
+    # Assumes password property is hashed
+    db_user = models.User(email=user.email, hashed_password=user.password)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+def get_threads_by_user(user_id: int, db: Session, skip: int = 0, limit: int = 100):
+    return db.query(models.Thread).filter(models.Thread.user_id == user_id).all()
 
 def get_messages(thread_id: int, db: Session, skip: int = 0, limit: int = 100):
     return db.query(models.Message).filter(models.Message.thread_id == thread_id).offset(skip).limit(limit).all()

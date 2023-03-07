@@ -131,6 +131,33 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
+import schemas
+
+@app.post("/sign-up", response_model=Token)
+async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+    # check if user exists
+    if services.get_user(db, user.email):
+        raise HTTPException(status_code=404, detail="A user with this email already exists")
+    # password length requirement
+    if len(user.password) < 8:
+        raise HTTPException(status_code=404, detail="Password must be 8 characters")
+    # create user
+    unhashed_password = user.password
+    user.password = get_password_hash(user.password)
+    user = services.create_user(db, user)
+    user = authenticate_user(db, user.email, unhashed_password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
 @app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = authenticate_user(db, form_data.username, form_data.password)
@@ -151,13 +178,20 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
 
 import services
-import schemas
 
 # REST API Controllers
 @app.get("/threads/", response_model=List[schemas.Thread])
-async def get_threads(skip: int = 0, limit: int = 100, current_user: User = Depends(get_current_active_user),
+async def get_threads_by_user(skip: int = 0, limit: int = 100, current_user: User = Depends(get_current_active_user),
                       db: Session = Depends(get_db)):
-    threads = services.get_threads(db, skip=skip, limit=limit)
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not authorized",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    print("current_user", current_user)
+    user_id = current_user.id
+    threads = services.get_threads_by_user(user_id, db, skip=skip, limit=limit)
     return threads
 
 @app.get("/threads/{thread_id}")

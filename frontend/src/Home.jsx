@@ -102,7 +102,9 @@ export default class Home extends Component {
                 this.checkAuth(data);
                 this.setState({ ...this.state, messages: data })
                 setTimeout(() => {
-                    this.messageList.current.scrollTop = this.messageList.current.scrollHeight - this.messageList.current.offsetHeight;
+                    if (this.messageList.current) {
+                        this.messageList.current.scrollTop = this.messageList.current.scrollHeight - this.messageList.current.offsetHeight;
+                    }
                 })
             })
     }
@@ -128,7 +130,7 @@ export default class Home extends Component {
         this.promptTextarea.current.focus();
     }
 
-    handleSendClick(event) {
+    handleSendClick() {
         this.setState({ ...this.state, sendButtonEnabled: false })
 
         // Create a new thread if on the welcome/new thread page
@@ -214,6 +216,7 @@ export default class Home extends Component {
             ...this.state,
             prompt: event.target.value,
         })
+        setTimeout(() =>{ this.handleSendClick(); })
     }
 
     render() {
@@ -242,6 +245,7 @@ export default class Home extends Component {
         const examplePrompts = examplePromptStrings.map((examplePromptString, i) => {
             return <button key={i} type="button" value={examplePromptString}
                            onClick={this.handleExampleClick}
+                           disabled={!this.state.sendButtonEnabled}
                            className="example-prompt-button">{examplePromptString} →</button>
         })
 

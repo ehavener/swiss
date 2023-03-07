@@ -11,6 +11,13 @@ class User(BaseModel):
     class Config:
         orm_mode = True
 
+class UserCreate(BaseModel):
+    email: str
+    password: str
+
+    class Config:
+        orm_mode = True
+
 class Thread(BaseModel):
     id: int
     title: str
