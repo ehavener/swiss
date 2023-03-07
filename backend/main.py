@@ -1,6 +1,5 @@
 from datetime import timedelta, datetime
 from inspect import getmembers
-from pprint import pprint
 from types import FunctionType
 from typing import Union, List
 
@@ -12,25 +11,38 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 from pydantic import BaseSettings
 from sqlalchemy.orm import Session
+from pprint import pprint
 
 import models
 from database import SessionLocal
 from schemas import User
 
+# Helper functions
+def attributes(obj):
+    disallowed_names = {
+      name for name, value in getmembers(type(obj))
+        if isinstance(value, FunctionType)}
+    return {
+      name: getattr(obj, name) for name in dir(obj)
+        if name[0] != '_' and name not in disallowed_names and hasattr(obj, name)}
+
+def print_attributes(obj):
+    pprint(attributes(obj))
+
+# Environment
 class Settings(BaseSettings):
     # JWT # to get a string like this run: # openssl rand -hex 32
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     # CORS
-    origins: List[str] = ["http://localhost:3000"]
+    origins: List[str] = [
+        "http://localhost:3000"  # Local react app
+    ]
     # Co:here
     cohere_api_key: str
 
 settings = Settings()
-
-class Prompt(BaseModel):
-    text: str
 
 app = FastAPI()
 
@@ -50,9 +62,7 @@ def get_db():
     finally:
         db.close()
 
-
 # Security
-
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -140,26 +150,13 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
-
 import services
 import schemas
 
-def attributes(obj):
-    disallowed_names = {
-      name for name, value in getmembers(type(obj))
-        if isinstance(value, FunctionType)}
-    return {
-      name: getattr(obj, name) for name in dir(obj)
-        if name[0] != '_' and name not in disallowed_names and hasattr(obj, name)}
-
-def print_attributes(obj):
-    pprint(attributes(obj))
-
+# REST API Controllers
 @app.get("/threads/", response_model=List[schemas.Thread])
-async def get_threads(skip: int = 0, limit: int = 100, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+async def get_threads(skip: int = 0, limit: int = 100, current_user: User = Depends(get_current_active_user),
+                      db: Session = Depends(get_db)):
     threads = services.get_threads(db, skip=skip, limit=limit)
     return threads
 
@@ -168,21 +165,30 @@ async def get_thread(thread_id: int, current_user: User = Depends(get_current_ac
     return NotImplemented
 
 @app.post("/threads/", response_model=schemas.Thread)
-async def create_thread(thread: schemas.ThreadCreate, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
-    thread.title = "A new thread"
+async def create_thread(thread: schemas.ThreadCreate, current_user: User = Depends(get_current_active_user),
+                        db: Session = Depends(get_db)):
     thread = services.create_thread(thread.title, current_user, db)
     return thread
 
 @app.get("/threads/{thread_id}/messages/", response_model=List[schemas.Message])
-async def get_thread_messages(thread_id: int, skip: int = 0, limit: int = 100, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+async def get_thread_messages(thread_id: int, skip: int = 0, limit: int = 100,
+                              current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
     messages = services.get_messages(thread_id, db, skip=skip, limit=limit)
     return messages
 
 @app.post("/threads/{thread_id}/messages/", response_model=List[schemas.Message])
-async def create_thread_message(thread_id: int, message: schemas.MessageCreate, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+async def create_thread_message(thread_id: int, message: schemas.MessageCreate,
+                                current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    print("thread_id", thread_id)
     # creates a new message as POSTed by the user
-    new_message = services.create_message(thread_id, message.text, current_user, db)
+    services.create_message(thread_id=thread_id, text=message.text, user=current_user, type="prompt", db=db)
     # sends the appropriate context (entire thread concatenated) to the model
+    all_messages_in_thread = services.get_messages(thread_id, db, skip=0, limit=100)
+    context = " ".join([m.text for m in all_messages_in_thread])
+    model_response = services.generate_response(context)
+    print("model_response", model_response)
     # creates a new message with the model's response
+    services.create_message(thread_id=thread_id, text=model_response[0].text, user=current_user, type="response", db=db)
     # returns all messages in thread
-    return NotImplemented
+    messages = services.get_messages(thread_id, db, skip=0, limit=100)
+    return messages

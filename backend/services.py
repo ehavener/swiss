@@ -23,8 +23,10 @@ def create_thread(title: str, user: User, db: Session):
     db.refresh(db_thread)
     return db_thread
 
-def create_message(text: str, thread_id: int, user: User, db: Session):
-    db_message = models.Message(text=text, thread_id=thread_id, user_id=user.id)
+def create_message(thread_id: int, text: str, user: User, type: str, db: Session):
+    print("thread_id", thread_id)
+    db_message = models.Message(text=text, thread_id=thread_id, type=type, user_id=user.id)
+    print("db_message.thread_id", db_message.thread_id)
     db.add(db_message)
     db.commit()
     db.refresh(db_message)
@@ -32,6 +34,11 @@ def create_message(text: str, thread_id: int, user: User, db: Session):
 
 def generate_response(text: str):
     response = co.generate(
+        model="command-xlarge-nightly",
+        max_tokens=300,
         prompt=text,
+        temperature=0.9,
+        k=0,
+        p=0.75,
     )
     return response

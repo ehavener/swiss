@@ -5,15 +5,16 @@ import './Home.css';
 
 export default class Home extends Component {
 
-
     constructor(props) {
         super(props);
         this.state = {
             user: {},
             prompt: '',
             threads: [],
-            selected_thread_id: 0,
-            messages: []
+            selectedThreadId: null,
+            messages: [],
+            sendButtonEnabled: true,
+            creatingNewThread: true
         };
 
         this.handlePromptChange = this.handlePromptChange.bind(this);
@@ -101,59 +102,104 @@ export default class Home extends Component {
 
     handleThreadClick({currentTarget}) {
         const threadId = currentTarget.value
-        this.setState({ ...this.state, selected_thread_id: threadId })
+        this.setState({
+            ...this.state,
+            selectedThreadId: threadId,
+            creatingNewThread: false
+        })
         this.fetchMessages(threadId)
     }
 
     handleNewThreadClick(event) {
-        const url = "http://127.0.0.1:8000/threads/"
-        fetch(url, {
-            method: "POST",
-            mode: "cors",
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization' : `Bearer ${localStorage.getItem("ot_access_token")}`
-            },
-            body: JSON.stringify({ title: "new thread" })
+        // create a temporary thread on the frontend where the user can send an initial message
+        this.setState({
+            ...this.state,
+            creatingNewThread: true,
+            selectedThreadId: null
         })
-            .then((response) => response.json())
-            .then(data => {
-                this.checkAuth(data);
-                this.setState({
-                    ...this.state,
-                    threads: this.state.threads.concat([data]),
-                    messages: []
-                })
-            })
     }
 
     handleSendClick(event) {
-        const thread_id = this.state.selected_thread_id;
-        const url = `http://127.0.0.1:8000/threads/${thread_id}/messages`;
-        fetch(url, {
-            method: "POST",
-            mode: "cors",
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization' : `Bearer ${localStorage.getItem("ot_access_token")}`
-            },
-            body: JSON.stringify({ text: this.state.prompt })
-        })
-            .then((response) => response.json())
-            .then(data => {
-                this.checkAuth(data);
-                this.setState({
-                    ...this.state,
-                    messages: data
-                })
+        this.setState({ ...this.state, sendButtonEnabled: false })
+
+        // Create a new thread if on the welcome/new thread page
+        if (this.state.selectedThreadId == null) {
+            const url = "http://127.0.0.1:8000/threads/"
+            fetch(url, {
+                method: "POST",
+                mode: "cors",
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization' : `Bearer ${localStorage.getItem("ot_access_token")}`
+                },
+                body: JSON.stringify({ title: new Date().toLocaleString() })
             })
+                .then((response) => response.json())
+                .then(data => {
+                    this.checkAuth(data);
+                    this.setState({
+                        ...this.state,
+                        threads: this.state.threads.concat([data]),
+                        selectedThreadId: data["id"],
+                        messages: []
+                    })
+
+                    const url = `http://127.0.0.1:8000/threads/${data["id"]}/messages`;
+                    fetch(url, {
+                        method: "POST",
+                        mode: "cors",
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization' : `Bearer ${localStorage.getItem("ot_access_token")}`
+                        },
+                        body: JSON.stringify({ text: this.state.prompt })
+                    })
+                        .then((response) => response.json())
+                        .then(data => {
+                            this.checkAuth(data);
+                            this.setState({
+                                ...this.state,
+                                messages: data,
+                                prompt: '',
+                                sendButtonEnabled: true,
+                                creatingNewThread: false
+                            })
+                        })
+                })
+        } else {
+            const thread_id = this.state.selectedThreadId;
+            const url = `http://127.0.0.1:8000/threads/${thread_id}/messages`;
+            fetch(url, {
+                method: "POST",
+                mode: "cors",
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization' : `Bearer ${localStorage.getItem("ot_access_token")}`
+                },
+                body: JSON.stringify({ text: this.state.prompt })
+            })
+                .then((response) => response.json())
+                .then(data => {
+                    this.checkAuth(data);
+                    this.setState({
+                        ...this.state,
+                        messages: data,
+                        prompt: '',
+                        sendButtonEnabled: true
+                    })
+                })
+        }
     }
 
     render() {
         const threadListItems = this.state.threads.map(thread => {
             return (
                 <div key={thread.id} className="thread-list-item">
-                    <button type="button" value={thread.id} onClick={this.handleThreadClick}> {thread.title} </button>
+                    <button type="button" title={thread.title} value={thread.id}
+                            className={this.state.selectedThreadId == thread.id ? 'selected' : ''}
+                            onClick={this.handleThreadClick}>
+                        {thread.title}
+                    </button>
                 </div>)
         })
 
@@ -161,12 +207,27 @@ export default class Home extends Component {
             return (<div key={message.id} className={`${message.type} message-list-item`}>{message.text}</div>)
         })
 
+        const spinner = () =>  { return (<div className="spinner"></div>)}
+
+        const sendButton = () => { return (<button type="button" onClick={this.handleSendClick}>Send</button>) }
+
+        const welcomeScreen = () => { return (<div className="welcome-screen">
+            <h1>Open Toolformer</h1>
+        </div>)}
+
+        const messageList = () => { return (<div className="message-list-container">
+            <div className="message-list">
+                {messageListItems}
+            </div>
+        </div>)}
+
         return (
             <div className="home-container">
                 <div className="sidebar">
                     <div className="thread-list">
                         <div>
-                            <button style={{width: "100%"}} type="button" onClick={this.handleNewThreadClick}>
+                            <button style={{width: "100%", marginBottom: "8px"}}
+                                    type="button" onClick={this.handleNewThreadClick}>
                                 New thread
                             </button>
                         </div>
@@ -180,17 +241,13 @@ export default class Home extends Component {
                     </div>
                 </div>
                 <div className="content">
-                    <div className="message-list-container">
-                        <div className="message-list">
-                            {messageListItems}
-                        </div>
-                    </div>
+                    {this.state.creatingNewThread ? welcomeScreen() : messageList()}
                     <div className="compose-message-container">
                         <div className="message-text">
-                            <textarea onChange={this.handlePromptChange} rows="6"/>
+                            <textarea value={this.state.prompt} disabled={!this.state.sendButtonEnabled} onChange={this.handlePromptChange} rows="6"/>
                         </div>
                         <div className="message-send">
-                            <button type="button" onClick={this.handleSendClick}>Send</button>
+                            {this.state.sendButtonEnabled ? sendButton() : spinner()}
                         </div>
                     </div>
                 </div>
