@@ -38,7 +38,7 @@ def create_message(thread_id: int, text: str, user: UserModel, type: str, db: Se
     db.refresh(db_message)
     return db_message
 
-def generate_response(text: str):
+def generate_cohere_response(text: str):
     response = co.generate(
         model="command-xlarge-nightly",
         max_tokens=300,
@@ -48,3 +48,7 @@ def generate_response(text: str):
         p=0.75,
     )
     return response
+
+def generate_toolformer_response(text: str):
+
+    return NotImplemented

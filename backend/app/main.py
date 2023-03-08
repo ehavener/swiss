@@ -179,7 +179,7 @@ async def create_thread_message(thread_id: int, message: MessageCreateModel,
     # sends the appropriate context (entire thread concatenated) to the model
     all_messages_in_thread = services.get_messages(user_id=current_user.id, thread_id=thread_id, db=db)
     context = " ".join([m.text for m in all_messages_in_thread])
-    model_response = services.generate_response(context)
+    model_response = services.generate_cohere_response(context)
     # creates a new message with the model's response
     services.create_message(thread_id=thread_id, text=model_response[0].text, user=current_user, type="response", db=db)
     # returns all messages in thread
