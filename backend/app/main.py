@@ -123,12 +123,6 @@ async def create_user(user: UserCreateModel, db: Session = Depends(get_db)):
     user.password = get_password_hash(user.password)
     user = services.create_user(db, user)
     user = authenticate_user(db, user.email, unhashed_password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
@@ -155,11 +149,10 @@ async def read_users_me(current_user: UserModel = Depends(get_current_active_use
     return current_user
 
 @app.get("/threads/", response_model=List[ThreadModel])
-async def get_threads_by_user(skip: int = 0, limit: int = 100,
-                              current_user: UserModel = Depends(get_current_active_user),
+async def get_threads_by_user(current_user: UserModel = Depends(get_current_active_user),
                               db: Session = Depends(get_db)):
     user_id = current_user.id
-    threads = services.get_threads_by_user(user_id, db, skip=skip, limit=limit)
+    threads = services.get_threads_by_user(user_id, db)
     return threads
 
 @app.post("/threads/", response_model=ThreadModel)
@@ -169,10 +162,11 @@ async def create_thread(thread: ThreadCreateModel, current_user: UserModel = Dep
     return thread
 
 @app.get("/threads/{thread_id}/messages/", response_model=List[MessageModel])
-async def get_thread_messages(thread_id: int, skip: int = 0, limit: int = 100,
+async def get_thread_messages(thread_id: int,
                               current_user: UserModel = Depends(get_current_active_user),
                               db: Session = Depends(get_db)):
-    messages = services.get_messages(thread_id, db, skip=skip, limit=limit)
+    # Users should only be able to read messages in threads they own
+    messages = services.get_messages(current_user.id, thread_id, db)
     return messages
 
 @app.post("/threads/{thread_id}/messages/", response_model=List[MessageModel])
@@ -180,13 +174,14 @@ async def create_thread_message(thread_id: int, message: MessageCreateModel,
                                 current_user: UserModel = Depends(get_current_active_user),
                                 db: Session = Depends(get_db)):
     # creates a new message as POSTed by the user
+    # Users should only be able to create messages in threads they own
     services.create_message(thread_id=thread_id, text=message.text, user=current_user, type="prompt", db=db)
     # sends the appropriate context (entire thread concatenated) to the model
-    all_messages_in_thread = services.get_messages(thread_id, db, skip=0, limit=100)
+    all_messages_in_thread = services.get_messages(user_id=current_user.id, thread_id=thread_id, db=db)
     context = " ".join([m.text for m in all_messages_in_thread])
     model_response = services.generate_response(context)
     # creates a new message with the model's response
     services.create_message(thread_id=thread_id, text=model_response[0].text, user=current_user, type="response", db=db)
     # returns all messages in thread
-    messages = services.get_messages(thread_id, db, skip=0, limit=100)
+    messages = services.get_messages(user_id=current_user.id, thread_id=thread_id, db=db)
     return messages

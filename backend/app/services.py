@@ -18,11 +18,11 @@ def create_user(db: Session, user: UserModel):
     db.refresh(db_user)
     return db_user
 
-def get_threads_by_user(user_id: int, db: Session, skip: int = 0, limit: int = 100):
+def get_threads_by_user(user_id: int, db: Session):
     return db.query(Thread).filter(Thread.user_id == user_id).all()
 
-def get_messages(thread_id: int, db: Session, skip: int = 0, limit: int = 100):
-    return db.query(Message).filter(Message.thread_id == thread_id).offset(skip).limit(limit).all()
+def get_messages(user_id: int, thread_id: int, db: Session):
+    return db.query(Message).filter(Message.user_id == user_id).filter(Message.thread_id == thread_id).all()
 
 def create_thread(title: str, user: UserModel, db: Session):
     db_thread = Thread(title=title, user_id=user.id)
@@ -32,9 +32,7 @@ def create_thread(title: str, user: UserModel, db: Session):
     return db_thread
 
 def create_message(thread_id: int, text: str, user: UserModel, type: str, db: Session):
-    print("thread_id", thread_id)
     db_message = Message(text=text, thread_id=thread_id, type=type, user_id=user.id)
-    print("db_message.thread_id", db_message.thread_id)
     db.add(db_message)
     db.commit()
     db.refresh(db_message)
