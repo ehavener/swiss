@@ -2,7 +2,7 @@ from typing import Union
 
 from pydantic import BaseModel
 
-class User(BaseModel):
+class UserModel(BaseModel):
     id: int
     email: Union[str, None] = None
     full_name: Union[str, None] = None
@@ -11,14 +11,14 @@ class User(BaseModel):
     class Config:
         orm_mode = True
 
-class UserCreate(BaseModel):
+class UserCreateModel(BaseModel):
     email: str
     password: str
 
     class Config:
         orm_mode = True
 
-class Thread(BaseModel):
+class ThreadModel(BaseModel):
     id: int
     title: str
     last_message_at: Union[str, None]
@@ -27,13 +27,13 @@ class Thread(BaseModel):
     class Config:
         orm_mode = True
 
-class ThreadCreate(BaseModel):
+class ThreadCreateModel(BaseModel):
     title: str
 
     class Config:
         orm_mode = True
 
-class Message(BaseModel):
+class MessageModel(BaseModel):
     id: int
     text: str
     type: str  # prompt | response
@@ -44,7 +44,7 @@ class Message(BaseModel):
     class Config:
         orm_mode = True
 
-class MessageCreate(BaseModel):
+class MessageCreateModel(BaseModel):
     text: str
 
     class Config:

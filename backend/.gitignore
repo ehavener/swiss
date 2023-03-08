@@ -1,2 +1,4 @@
 secrets
 export_secrets.sh
+.pytest_cache/
+app/sql_app.db

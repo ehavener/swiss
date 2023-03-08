@@ -1,39 +1,39 @@
 from sqlalchemy.orm import Session
 import cohere
 
-import models
-from schemas import User
-from main import settings
+from models import User, Thread, Message
+from schemas import UserModel
+from config import settings
 
 co = cohere.Client(settings.cohere_api_key)
 
 def get_user(db: Session, email: str):
-    return db.query(models.User).filter(models.User.email == email).first()
+    return db.query(User).filter(User.email == email).first()
 
-def create_user(db: Session, user: User):
+def create_user(db: Session, user: UserModel):
     # Assumes password property is hashed
-    db_user = models.User(email=user.email, hashed_password=user.password)
+    db_user = User(email=user.email, hashed_password=user.password)
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     return db_user
 
 def get_threads_by_user(user_id: int, db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Thread).filter(models.Thread.user_id == user_id).all()
+    return db.query(Thread).filter(Thread.user_id == user_id).all()
 
 def get_messages(thread_id: int, db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Message).filter(models.Message.thread_id == thread_id).offset(skip).limit(limit).all()
+    return db.query(Message).filter(Message.thread_id == thread_id).offset(skip).limit(limit).all()
 
-def create_thread(title: str, user: User, db: Session):
-    db_thread = models.Thread(title=title, user_id=user.id)
+def create_thread(title: str, user: UserModel, db: Session):
+    db_thread = Thread(title=title, user_id=user.id)
     db.add(db_thread)
     db.commit()
     db.refresh(db_thread)
     return db_thread
 
-def create_message(thread_id: int, text: str, user: User, type: str, db: Session):
+def create_message(thread_id: int, text: str, user: UserModel, type: str, db: Session):
     print("thread_id", thread_id)
-    db_message = models.Message(text=text, thread_id=thread_id, type=type, user_id=user.id)
+    db_message = Message(text=text, thread_id=thread_id, type=type, user_id=user.id)
     print("db_message.thread_id", db_message.thread_id)
     db.add(db_message)
     db.commit()

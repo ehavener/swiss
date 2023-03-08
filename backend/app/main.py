@@ -1,49 +1,22 @@
 from datetime import timedelta, datetime
-from inspect import getmembers
-from types import FunctionType
 from typing import Union, List
 
-from fastapi import FastAPI, Depends, HTTPException, status, Header
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
-from pydantic import BaseSettings
 from sqlalchemy.orm import Session
-from pprint import pprint
 
-import models
+from config import settings
+
+from models import User
 from database import SessionLocal
-from schemas import User
+from schemas import UserModel, UserCreateModel, ThreadModel, ThreadCreateModel, MessageModel, MessageCreateModel
+import services
 
-# Helper functions
-def attributes(obj):
-    disallowed_names = {
-      name for name, value in getmembers(type(obj))
-        if isinstance(value, FunctionType)}
-    return {
-      name: getattr(obj, name) for name in dir(obj)
-        if name[0] != '_' and name not in disallowed_names and hasattr(obj, name)}
-
-def print_attributes(obj):
-    pprint(attributes(obj))
-
-# Environment
-class Settings(BaseSettings):
-    # JWT # to get a string like this run: # openssl rand -hex 32
-    SECRET_KEY: str
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    # CORS
-    origins: List[str] = [
-        "http://localhost:3000"  # Local react app
-    ]
-    # Co:here
-    cohere_api_key: str
-
-settings = Settings()
-
+# FastAPI Setup
 app = FastAPI()
 
 app.add_middleware(
@@ -54,7 +27,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -62,12 +34,12 @@ def get_db():
     finally:
         db.close()
 
-# Security
-class Token(BaseModel):
+# Security and Authorization Middleware
+class TokenModel(BaseModel):
     access_token: str
     token_type: str
 
-class TokenData(BaseModel):
+class TokenDataModel(BaseModel):
     username: Union[str, None] = None
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -80,14 +52,14 @@ def verify_password(plain_password, hashed_password):
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-class UserInDB(User):
+class UserInDBModel(UserModel):
     hashed_password: str
 
 def get_user(db: Session, username: str):
-    user_db_model = db.query(models.User).filter(models.User.email == username).first()
-    return UserInDB(id=user_db_model.id, email=user_db_model.email,
-                    full_name=user_db_model.full_name, disabled=user_db_model.disabled,
-                    hashed_password=user_db_model.hashed_password)
+    user_db_model = db.query(User).filter(User.email == username).first()
+    return UserInDBModel(id=user_db_model.id, email=user_db_model.email,
+                         full_name=user_db_model.full_name, disabled=user_db_model.disabled,
+                         hashed_password=user_db_model.hashed_password)
 
 def authenticate_user(db, username: str, password: str):
     user = get_user(db=db, username=username)
@@ -118,7 +90,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        token_data = TokenDataModel(username=username)
     except JWTError:
         raise credentials_exception
     user = get_user(db=db, username=token_data.username)
@@ -126,15 +98,20 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         raise credentials_exception
     return user
 
-async def get_current_active_user(current_user: User = Depends(get_current_user)):
+async def get_current_active_user(current_user: UserModel = Depends(get_current_user)):
+    if not current_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not authorized",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
-import schemas
-
-@app.post("/sign-up", response_model=Token)
-async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
+# Routes and Controllers
+@app.post("/sign-up", response_model=TokenModel)
+async def create_user(user: UserCreateModel, db: Session = Depends(get_db)):
     # check if user exists
     if services.get_user(db, user.email):
         raise HTTPException(status_code=404, detail="A user with this email already exists")
@@ -158,7 +135,7 @@ async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.post("/token", response_model=Token)
+@app.post("/token", response_model=TokenModel)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
@@ -173,54 +150,41 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.get("/users/me/", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
+@app.get("/users/me/", response_model=UserModel)
+async def read_users_me(current_user: UserModel = Depends(get_current_active_user)):
     return current_user
 
-import services
-
-# REST API Controllers
-@app.get("/threads/", response_model=List[schemas.Thread])
-async def get_threads_by_user(skip: int = 0, limit: int = 100, current_user: User = Depends(get_current_active_user),
-                      db: Session = Depends(get_db)):
-    if not current_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not authorized",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    print("current_user", current_user)
+@app.get("/threads/", response_model=List[ThreadModel])
+async def get_threads_by_user(skip: int = 0, limit: int = 100,
+                              current_user: UserModel = Depends(get_current_active_user),
+                              db: Session = Depends(get_db)):
     user_id = current_user.id
     threads = services.get_threads_by_user(user_id, db, skip=skip, limit=limit)
     return threads
 
-@app.get("/threads/{thread_id}")
-async def get_thread(thread_id: int, current_user: User = Depends(get_current_active_user)):
-    return NotImplemented
-
-@app.post("/threads/", response_model=schemas.Thread)
-async def create_thread(thread: schemas.ThreadCreate, current_user: User = Depends(get_current_active_user),
+@app.post("/threads/", response_model=ThreadModel)
+async def create_thread(thread: ThreadCreateModel, current_user: UserModel = Depends(get_current_active_user),
                         db: Session = Depends(get_db)):
     thread = services.create_thread(thread.title, current_user, db)
     return thread
 
-@app.get("/threads/{thread_id}/messages/", response_model=List[schemas.Message])
+@app.get("/threads/{thread_id}/messages/", response_model=List[MessageModel])
 async def get_thread_messages(thread_id: int, skip: int = 0, limit: int = 100,
-                              current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+                              current_user: UserModel = Depends(get_current_active_user),
+                              db: Session = Depends(get_db)):
     messages = services.get_messages(thread_id, db, skip=skip, limit=limit)
     return messages
 
-@app.post("/threads/{thread_id}/messages/", response_model=List[schemas.Message])
-async def create_thread_message(thread_id: int, message: schemas.MessageCreate,
-                                current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
-    print("thread_id", thread_id)
+@app.post("/threads/{thread_id}/messages/", response_model=List[MessageModel])
+async def create_thread_message(thread_id: int, message: MessageCreateModel,
+                                current_user: UserModel = Depends(get_current_active_user),
+                                db: Session = Depends(get_db)):
     # creates a new message as POSTed by the user
     services.create_message(thread_id=thread_id, text=message.text, user=current_user, type="prompt", db=db)
     # sends the appropriate context (entire thread concatenated) to the model
     all_messages_in_thread = services.get_messages(thread_id, db, skip=0, limit=100)
     context = " ".join([m.text for m in all_messages_in_thread])
     model_response = services.generate_response(context)
-    print("model_response", model_response)
     # creates a new message with the model's response
     services.create_message(thread_id=thread_id, text=model_response[0].text, user=current_user, type="response", db=db)
     # returns all messages in thread
